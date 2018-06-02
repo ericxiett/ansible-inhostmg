@@ -1,0 +1,17 @@
+allow booting;
+allow bootp;
+ddns-update-style none;
+ping-check true;
+ping-timeout 3;
+authoritative;
+next-server {{ serv_ip }};
+filename "pxelinux.0";
+option domain-name-servers {{ serv_ip }};
+option domain-name "inspur.local";
+default-lease-time 600;
+max-lease-time 7200;
+
+subnet 10.10.5.0 netmask 255.255.255.0 {
+range 10.10.5.20 10.10.5.250;
+option routers 10.10.5.254;
+}

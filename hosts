@@ -1,0 +1,2 @@
+deploy ansible_host=127.0.0.1
+inhostmg ansible_host=10.2.7.38 ansible_ssh_pass=Lc13yfwpW

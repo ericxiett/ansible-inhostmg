@@ -1,0 +1,36 @@
+---
+
+- name: Add newton repo
+  copy:
+    src: files/openstack-newton.repo
+    dest: /etc/yum.repos.d/openstack-newton.repo
+
+- name: Clean yum metadata
+  command: yum clean metadata
+  args:
+    warn: no
+
+- name: Install openstack common package
+  yum:
+    name: python-openstackclient
+    state: latest
+
+- name: Create tmp dir
+  file:
+    path: /tmp/inhostmg
+    state: directory
+
+- name: Prepare own ironic related rpms
+  copy:
+    src: files/{{ item }}
+    dest: /tmp/inhostmg/
+  with_items:
+    - openstack-ironic-api-6.2.1-1.el7.noarch.rpm
+    - openstack-ironic-common-6.2.1-1.el7.noarch.rpm
+    - openstack-ironic-conductor-6.2.1-1.el7.noarch.rpm
+    - openstack-ironic-inspector-4.2.0-1.el7.noarch.rpm
+
+- name: Install openstack-utils package
+  yum:
+    name: openstack-utils
+    state: latest

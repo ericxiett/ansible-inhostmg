@@ -1,0 +1,5 @@
+---
+
+serv_ip: "192.168.11.38"
+password: "inhostmg"
+ipmi_admin_pass: "admin"

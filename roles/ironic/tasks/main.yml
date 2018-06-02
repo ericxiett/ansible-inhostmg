@@ -1,0 +1,77 @@
+---
+
+- name: Create ironic database
+  mysql_db:
+    name: ironic
+    state: present
+    encoding: utf8
+    login_user: root
+    login_password: "{{ password }}"
+
+- name: Grant all privileges for ironic
+  command: 'mysql -uroot -p{{ password }} -ne "{{ item }}"'
+  with_items:
+    - GRANT ALL PRIVILEGES ON ironic.* TO 'ironic'@'localhost' IDENTIFIED BY '{{ password }}'
+    - GRANT ALL PRIVILEGES ON ironic.* TO 'ironic'@'%' IDENTIFIED BY '{{ password }}'
+
+- name: Install related packages for ironic
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - /tmp/inhostmg/openstack-ironic-common-6.2.1-1.el7.noarch.rpm
+    - /tmp/inhostmg/openstack-ironic-api-6.2.1-1.el7.noarch.rpm
+    - /tmp/inhostmg/openstack-ironic-conductor-6.2.1-1.el7.noarch.rpm
+    - python-ironicclient
+    - python-ironic-inspector-client
+
+- name: Configurate ironic
+  command: 'openstack-config --set /etc/ironic/ironic.conf "{{ item.section }}" "{{ item.param }}" "{{ item.value }}"'
+  with_items:
+    - { section: DEFAULT, param: my_ip, value: "{{ serv_ip }}" }
+    - { section: DEFAULT, param: enabled_drivers, value: pxe_ipmitool }
+    - { section: DEFAULT, param: auth_strategy, value: noauth }
+    - { section: DEFAULT, param: transport_url, value: 'rabbit://openstack:"{{ password }}"@"{{ serv_ip }}"' }
+    - { section: DEFAULT, param: log_dir, value: /var/log/ironic }
+    - { section: conductor, param: api_url, value: 'http://"{{ serv_ip }}":6385' }
+    - { section: database, param: connection, value: 'mysql+pymysql://ironic:"{{ password }}"@"{{ serv_ip }}"/ironic?charset=utf8' }
+    - { section: dhcp, param: dhcp_provider, value: none }
+    - { section: inspector, param: enabled, value: true }
+    - { section: pxe, param: tftp_server, value: "{{ serv_ip }}" }
+
+- name: Sync ironic db
+  command: ironic-dbsync --config-file /etc/ironic/ironic.conf create_schema
+  ignore_errors: True
+
+- name: Start related ironic services
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - openstack-ironic-api
+    - openstack-ironic-conductor
+
+- include: setup_tftp_server.yml
+
+- name: Install dhcp package
+  yum:
+    name: dhcp
+    state: latest
+
+- name: Create dhcp configuration file
+  template:
+    src: roles/ironic/templates/dhcpd.conf.j2
+    dest: /etc/dhcp/dhcpd.conf
+
+- name: Start dhcp service
+  service:
+    name: dhcpd
+    state: started
+    enabled: yes
+  ignore_errors: True
+
+- name: Create ironic env file
+  template:
+    src: roles/ironic/templates/admin.rc.j2
+    dest: /root/admin.rc
